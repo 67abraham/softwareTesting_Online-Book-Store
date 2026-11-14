@@ -28,6 +28,16 @@ const CARD_RE = /^\d{16}$/;
 const EXPIRY_RE = /^(0[1-9]|1[0-2])\/(\d{2})$/;
 const CVV_RE = /^\d{3}$/;
 
+// Standard card length. The card number box accepts only this many digits.
+export const CARD_DIGITS = 16;
+
+// What the card number box shows while typing or pasting: digits only, at most
+// 16, in groups of four. "4242-4242 4242424299 x" -> "4242 4242 4242 4242"
+export function formatCardNumber(value) {
+  const digits = value.replace(/\D/g, '').slice(0, CARD_DIGITS);
+  return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+}
+
 // "4242 4242-4242 4242" -> "4242424242424242" (spaces and dashes are allowed)
 const digitsOnly = (v) => v.trim().replace(/[\s-]/g, '');
 

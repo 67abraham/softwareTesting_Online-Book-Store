@@ -9,7 +9,7 @@ import { useCart } from '../cart';
 import { useToast } from '../components/Toast';
 import FormField from '../components/FormField';
 import { formatPrice } from '../format';
-import { PAYMENT_FIELDS, SHIPPING_FIELDS, validateCheckout } from '../validation';
+import { CARD_DIGITS, PAYMENT_FIELDS, SHIPPING_FIELDS, formatCardNumber, validateCheckout } from '../validation';
 import { clearShippingDraft, loadShippingDraft, saveShippingDraft } from '../checkoutDraft';
 
 const MSG_EMPTY_CART = 'Your cart is empty. Add books before checking out.';
@@ -24,6 +24,16 @@ function stockProblems(cart) {
       bookId: i.bookId,
       text: `"${i.title}" has only ${i.stock} copies left. Please update your cart.`,
     }));
+}
+
+// Index in "4242 4242 4242 4242" just after the n-th digit (0 -> start of the box).
+function positionAfterDigits(formatted, n) {
+  if (n <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < formatted.length; i++) {
+    if (/\d/.test(formatted[i]) && ++seen === n) return i + 1;
+  }
+  return formatted.length;
 }
 
 // A short "fingerprint" of the cart, used to notice if it changed (items, quantities, prices).
@@ -106,6 +116,41 @@ export default function Checkout() {
     const { name, value } = e.target;
     setValues((v) => ({ ...v, [name]: value }));
     if (errors[name]) setErrors(({ [name]: _removed, ...rest }) => rest);
+  }
+
+  // Card number: digits only, up to the standard 16, shown in groups of four.
+  // Reformatting replaces the whole value, which would throw the cursor to the
+  // end, so we count the digits before the cursor and put it back after the
+  // same number of digits.
+  function handleCardNumberChange(e) {
+    const input = e.target;
+    const raw = input.value;
+    const caret = input.selectionStart ?? raw.length;
+    const inputType = e.nativeEvent.inputType;
+
+    let digits = raw.replace(/\D/g, '');
+    let digitsBeforeCaret = raw.slice(0, caret).replace(/\D/g, '').length;
+
+    // Backspace / Delete on the space between groups removed only the space,
+    // which formatting would put straight back. Remove the neighbouring digit instead.
+    const onlyASpaceWasDeleted = digits === values.cardNumber.replace(/\D/g, '');
+    if (onlyASpaceWasDeleted && inputType === 'deleteContentBackward' && digitsBeforeCaret > 0) {
+      digits = digits.slice(0, digitsBeforeCaret - 1) + digits.slice(digitsBeforeCaret);
+      digitsBeforeCaret -= 1;
+    } else if (onlyASpaceWasDeleted && inputType === 'deleteContentForward') {
+      digits = digits.slice(0, digitsBeforeCaret) + digits.slice(digitsBeforeCaret + 1);
+    }
+
+    const formatted = formatCardNumber(digits);
+    const caretPosition = positionAfterDigits(formatted, Math.min(digitsBeforeCaret, CARD_DIGITS));
+
+    setValues((v) => ({ ...v, cardNumber: formatted }));
+    if (errors.cardNumber) setErrors(({ cardNumber: _removed, ...rest }) => rest);
+
+    // Runs after React has put the new value in the box.
+    requestAnimationFrame(() => {
+      if (document.activeElement === input) input.setSelectionRange(caretPosition, caretPosition);
+    });
   }
 
   async function handleSubmit(e) {
@@ -295,6 +340,8 @@ export default function Checkout() {
                   inputMode: 'numeric',
                   autoComplete: 'cc-number',
                   placeholder: '4242 4242 4242 4242',
+                  hint: `${CARD_DIGITS} digits`,
+                  onChange: handleCardNumberChange,
                 })}
               </div>
               {field('expiry', 'Expiry (MM/YY)', { autoComplete: 'cc-exp', placeholder: 'MM/YY' })}
