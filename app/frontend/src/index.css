@@ -1,0 +1,392 @@
+/* Online Book Store - plain CSS. Colours and sizes are tokens so pages stay consistent. */
+
+:root {
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --text: #1f2328;
+  --text-muted: #5b6168;
+  --border: #d8d6cf;
+  --border-strong: #b9b6ac;
+
+  --primary: #1f5f4a;
+  --primary-hover: #174a3a;
+  --primary-soft: #e6f0ec;
+  --focus: #2f7d63;
+
+  --success: #1e7a3c;
+  --success-bg: #e8f5ec;
+  --error: #c62828;
+  --error-bg: #fdecec;
+
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 4px 16px rgb(0 0 0 / 0.06);
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--primary);
+}
+
+a:hover {
+  color: var(--primary-hover);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Layout ---------- */
+
+.main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 16px 64px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.placeholder {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 48px 0;
+}
+
+.placeholder h1 {
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+/* ---------- Header ---------- */
+
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.header__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.brand:hover {
+  color: var(--text);
+}
+
+.brand__mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #fff;
+  font-size: 16px;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav__link {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.nav__link:hover {
+  color: var(--text);
+  background: var(--bg);
+}
+
+.nav__link.active {
+  color: var(--primary);
+}
+
+.nav__link--button {
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+.nav__link--button.active,
+.nav__link--button:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn--primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn--block {
+  width: 100%;
+}
+
+/* ---------- Forms ---------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field__label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.field__input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.field__input:focus {
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgb(47 125 99 / 0.2);
+}
+
+.field__hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Inline field error: red border + red text */
+.field--error .field__input {
+  border-color: var(--error);
+  background: #fffafa;
+}
+
+.field--error .field__input:focus {
+  box-shadow: 0 0 0 3px rgb(198 40 40 / 0.18);
+}
+
+.field__error {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--error);
+}
+
+/* ---------- Auth pages (Register / Login) ---------- */
+
+.auth {
+  display: flex;
+  justify-content: center;
+}
+
+.auth__card {
+  width: 100%;
+  max-width: 440px;
+  padding: 32px;
+}
+
+.auth__title {
+  font-size: 26px;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.auth__lead {
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.auth__switch {
+  margin-top: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+@media (max-width: 480px) {
+  .auth__card {
+    padding: 24px 20px;
+  }
+}
+
+/* ---------- Toasts ---------- */
+
+/* Sits just below the header so it never covers the nav or the logged-in user. */
+.toast-region {
+  position: fixed;
+  top: 80px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid;
+  border-left-width: 5px;
+  box-shadow: var(--shadow);
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast--success {
+  background: var(--success-bg);
+  border-color: var(--success);
+  color: #14532d;
+}
+
+.toast--error {
+  background: var(--error-bg);
+  border-color: var(--error);
+  color: #7f1d1d;
+}
+
+.toast__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.toast--success .toast__icon {
+  background: var(--success);
+}
+
+.toast--error .toast__icon {
+  background: var(--error);
+}
+
+.toast__message {
+  flex: 1;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.toast__close {
+  flex: none;
+  border: 0;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 4px;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.toast__close:hover {
+  opacity: 1;
+}
+
+/* On narrow screens the header wraps to two rows, so show toasts at the bottom. */
+@media (max-width: 640px) {
+  .toast-region {
+    top: auto;
+    bottom: 16px;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
