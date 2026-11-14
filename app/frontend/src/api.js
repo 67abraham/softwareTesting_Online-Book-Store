@@ -12,6 +12,9 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
     this.fields = fields;
+    // true when the login session expired: AuthProvider has already shown the
+    // "Your session has expired..." toast, so pages should not show another one.
+    this.sessionExpired = false;
   }
 }
 
@@ -75,15 +78,17 @@ export async function api(path, { method = 'GET', body } = {}) {
   if (!res.ok) {
     const err = data && data.error;
     const code = err && err.code;
-    if (res.status === 401 && token && (code === 'TOKEN_EXPIRED' || code === 'UNAUTHENTICATED') && onSessionExpired) {
-      onSessionExpired();
-    }
-    throw new ApiError(
+    const apiError = new ApiError(
       res.status,
-      (err && err.code) || 'SERVER_ERROR',
+      code || 'SERVER_ERROR',
       (err && err.message) || GENERIC_ERROR,
       (err && err.fields) || {}
     );
+    if (res.status === 401 && token && (code === 'TOKEN_EXPIRED' || code === 'UNAUTHENTICATED') && onSessionExpired) {
+      apiError.sessionExpired = true;
+      onSessionExpired();
+    }
+    throw apiError;
   }
   return data;
 }
