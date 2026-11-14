@@ -1,7 +1,8 @@
 // F1 - Register page
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { useAuth } from '../auth';
 import { validateRegister } from '../validation';
 import { useToast } from '../components/Toast';
 import FormField from '../components/FormField';
@@ -14,6 +15,10 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
+  const { user, ready } = useAuth();
+
+  // Already logged in: no need to register.
+  if (ready && user) return <Navigate to="/" replace />;
 
   function handleChange(e) {
     const { name, value } = e.target;
