@@ -8,7 +8,19 @@ export const MSG = {
   PASSWORD_WEAK: 'Password must be at least 8 characters and contain a letter and a number.',
   PASSWORD_MISMATCH: 'Passwords do not match.',
   SEARCH_TOO_LONG: 'Search text must be 100 characters or less.',
+  QUANTITY: 'Quantity must be between 1 and 10.',
 };
+
+export const MIN_QTY = 1;
+export const MAX_QTY = 10;
+
+// Returns the quantity as a number, or null if it is not a whole number from 1 to 10.
+export function parseQuantity(value) {
+  const text = String(value).trim();
+  if (!/^\d+$/.test(text)) return null;
+  const n = Number(text);
+  return n >= MIN_QTY && n <= MAX_QTY ? n : null;
+}
 
 export const MAX_SEARCH_LENGTH = 100;
 
