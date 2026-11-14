@@ -1,0 +1,17 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# SQLite database (auto-created, reset with `npm run seed`)
+app/backend/data/*.db*
+
+# Local / private files kept out of the repo
+report/
+CLAUDE.md
+skills-lock.json
+.claude/
+.qodo/
+
+# OS and logs
+.DS_Store
+*.log
