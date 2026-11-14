@@ -40,6 +40,13 @@ export const tokenStore = {
   },
 };
 
+// Called when a logged-in request comes back 401 (token expired or invalid).
+// AuthProvider registers it so it can log the user out and show a message.
+let onSessionExpired = null;
+export function setSessionExpiredHandler(fn) {
+  onSessionExpired = fn;
+}
+
 export async function api(path, { method = 'GET', body } = {}) {
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -67,6 +74,10 @@ export async function api(path, { method = 'GET', body } = {}) {
 
   if (!res.ok) {
     const err = data && data.error;
+    const code = err && err.code;
+    if (res.status === 401 && token && (code === 'TOKEN_EXPIRED' || code === 'UNAUTHENTICATED') && onSessionExpired) {
+      onSessionExpired();
+    }
     throw new ApiError(
       res.status,
       (err && err.code) || 'SERVER_ERROR',

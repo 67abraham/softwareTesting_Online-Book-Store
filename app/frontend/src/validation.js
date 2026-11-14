@@ -12,6 +12,14 @@ export const MSG = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PASSWORD_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
+// Login only checks that both fields are filled in; the server decides if they are correct.
+export function validateLogin({ email, password }) {
+  const fields = {};
+  if (!email.trim()) fields.email = MSG.REQUIRED;
+  if (!password) fields.password = MSG.REQUIRED;
+  return fields;
+}
+
 // Returns an object like { email: 'Please enter a valid email address.' }.
 // An empty object means the form is valid.
 export function validateRegister({ name, email, password, confirmPassword }) {
