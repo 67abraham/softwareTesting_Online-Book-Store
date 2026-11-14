@@ -11,6 +11,8 @@ import Home from './pages/Home';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
+import Orders from './pages/Orders';
+import OrderDetail from './pages/OrderDetail';
 
 // Temporary stand-in for pages that are not built yet.
 function ComingSoon({ title }) {
@@ -39,8 +41,8 @@ export default function App() {
                 <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
                 <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                 <Route path="/order-success" element={<ProtectedRoute><OrderSuccess /></ProtectedRoute>} />
-                <Route path="/orders" element={<ProtectedRoute><ComingSoon title="My orders" /></ProtectedRoute>} />
-                <Route path="/orders/:id" element={<ProtectedRoute><ComingSoon title="Order details" /></ProtectedRoute>} />
+                <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+                <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
 
                 <Route path="*" element={<ComingSoon title="Page not found" />} />
               </Routes>

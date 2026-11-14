@@ -21,6 +21,9 @@ export default function Header() {
 
           {ready && user && (
             <>
+              <NavLink to="/orders" className="nav__link">
+                My orders
+              </NavLink>
               <NavLink to="/cart" className="nav__link nav__cart" aria-label={`Cart, ${count} item(s)`}>
                 Cart
                 <span className="cart-badge" data-testid="cart-badge" aria-hidden="true">

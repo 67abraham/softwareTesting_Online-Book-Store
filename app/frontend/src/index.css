@@ -1248,3 +1248,260 @@ select.field__input {
   font-size: 14px;
   color: var(--error);
 }
+
+/* ---------- Order history (F5) ---------- */
+
+.orders__head {
+  margin-bottom: 20px;
+}
+
+.orders__list {
+  overflow: hidden;
+}
+
+.orders__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.order-row {
+  display: grid;
+  /* fixed last column so the heading row and the order rows line up */
+  grid-template-columns: minmax(170px, 1.4fr) 1fr 0.6fr 0.8fr 1fr 120px;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.order-row:hover {
+  color: var(--text);
+  background: var(--bg);
+}
+
+.order-row--head {
+  border-top: 0;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  background: var(--bg);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.order-row--head:hover {
+  color: var(--text-muted);
+}
+
+.order-row__number {
+  font-weight: 700;
+}
+
+.order-row__total {
+  font-weight: 600;
+}
+
+.order-row__label {
+  display: none; /* shown on phones only, where there are no column headings */
+}
+
+.order-row__view {
+  justify-self: end;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+/* Status badges */
+.order-status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.order-status--placed {
+  background: #e7eefb;
+  color: #24508f;
+}
+
+.order-status--shipped {
+  background: #fff4e0;
+  color: #8a5300;
+}
+
+.order-status--delivered {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.order-status--cancelled {
+  background: #eeeeec;
+  color: #5b6168;
+}
+
+@media (max-width: 760px) {
+  .order-row--head {
+    display: none;
+  }
+
+  /* Each order becomes a small card: number + status on top, details below */
+  .order-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 12px;
+    padding: 16px;
+  }
+
+  .order-row:first-child {
+    border-top: 0;
+  }
+
+  .order-row__number {
+    grid-column: 1 / 3;
+    overflow-wrap: anywhere;
+  }
+
+  .order-row__cell:nth-of-type(5) {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .order-row__label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .order-row__view {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- Order details (F5) ---------- */
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.order-detail__notice {
+  margin-top: 8px;
+}
+
+.order-detail__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.order-detail__head .page-title {
+  overflow-wrap: anywhere;
+}
+
+.order-detail__head .order-status {
+  margin-top: 8px;
+  font-size: 15px;
+  padding: 5px 14px;
+}
+
+.order-detail__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 24px;
+}
+
+.order-detail__items,
+.order-detail__shipping {
+  padding: 20px;
+}
+
+.order-detail__section-title {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.items-table th,
+.items-table td {
+  padding: 10px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.items-table th:first-child,
+.items-table td:first-child {
+  padding-left: 0;
+}
+
+.items-table th:last-child,
+.items-table td:last-child {
+  padding-right: 0;
+}
+
+.items-table thead th {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.items-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.items-table tfoot th,
+.items-table tfoot td {
+  border-bottom: 0;
+  padding-top: 14px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.items-table tfoot th {
+  text-align: right;
+}
+
+.order-detail__address {
+  font-style: normal;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 860px) {
+  .order-detail__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .items-table th,
+  .items-table td {
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: 14px;
+  }
+
+  .items-table tfoot th,
+  .items-table tfoot td {
+    font-size: 16px;
+  }
+}
