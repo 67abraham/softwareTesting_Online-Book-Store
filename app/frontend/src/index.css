@@ -173,6 +173,25 @@ a:hover {
   cursor: pointer;
 }
 
+.nav__cart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cart-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .nav__user {
   display: inline-flex;
   align-items: center;
@@ -226,6 +245,20 @@ a:hover {
   font-size: 15px;
 }
 
+.banner--error {
+  background: var(--error-bg);
+  border-color: var(--error);
+  color: #7f1d1d;
+}
+
+.banner--with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .banner--info {
   background: var(--primary-soft);
   border-color: var(--primary);
@@ -263,6 +296,243 @@ a:hover {
 
 .btn--block {
   width: 100%;
+}
+
+.btn--ghost {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.btn--ghost:hover {
+  border-color: var(--text-muted);
+}
+
+.btn--small {
+  min-height: 36px;
+  padding: 6px 14px;
+  background: var(--surface);
+  border-color: currentColor;
+  color: inherit;
+}
+
+/* ---------- Page headings ---------- */
+
+.page-title {
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.page-lead {
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+
+/* ---------- Browse / search (F2) ---------- */
+
+.browse__head {
+  margin-bottom: 20px;
+}
+
+.search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px auto;
+  align-items: start;
+  gap: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+/* Line the buttons up with the inputs (below the labels) */
+.search__actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 27px;
+}
+
+select.field__input {
+  appearance: none;
+  padding-right: 36px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .search {
+    grid-template-columns: 1fr;
+  }
+
+  .search__actions {
+    padding-top: 0;
+  }
+
+  .search__actions .btn {
+    flex: 1;
+  }
+}
+
+.results__status {
+  margin-bottom: 16px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 16px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.empty-state__title {
+  font-size: 18px;
+  font-weight: 600;
+  max-width: 52ch;
+}
+
+/* ---------- Book grid and cards ---------- */
+
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.book-grid--loading {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.book-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.book-card__cover {
+  --cover: #5b6b7a;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  aspect-ratio: 3 / 2;
+  padding: 16px 16px 14px 24px;
+  color: #fff;
+  background: var(--cover);
+  /* spine line on the left edge */
+  box-shadow: inset 8px 0 0 rgb(0 0 0 / 0.18);
+}
+
+.book-card__cover[data-category='Fiction'] { --cover: #7a3e48; }
+.book-card__cover[data-category='Science'] { --cover: #2f5d7c; }
+.book-card__cover[data-category='History'] { --cover: #8a5a2b; }
+.book-card__cover[data-category='Technology'] { --cover: #3d4a5c; }
+.book-card__cover[data-category='Children'] { --cover: #2f7d63; }
+.book-card__cover[data-category='Business'] { --cover: #5a4a7a; }
+
+.book-card__cover-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.book-card__cover-author {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.book-card__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 14px 16px 16px;
+}
+
+.book-card__category {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.book-card__title {
+  margin-top: 4px;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.book-card__author {
+  margin-top: 2px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.book-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+.book-card__add {
+  margin-top: 12px;
+  min-height: 40px;
+}
+
+.book-card__add:disabled {
+  background: #e7e6e1;
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.book-card__price {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Stock status badge */
+.stock {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stock--in {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.stock--low {
+  background: #fff4e0;
+  color: #8a5300;
+}
+
+.stock--out {
+  background: #eeeeec;
+  color: #5b6168;
 }
 
 /* ---------- Forms ---------- */
@@ -457,5 +727,39 @@ a:hover {
 @media (prefers-reduced-motion: reduce) {
   .toast {
     animation: none;
+  }
+}
+
+/* Phones: two smaller cards per row instead of one huge one */
+@media (max-width: 520px) {
+  .book-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .book-card__cover {
+    padding: 12px 10px 10px 18px;
+  }
+
+  .book-card__cover-title {
+    font-size: 15px;
+  }
+
+  .book-card__cover-author {
+    font-size: 10px;
+  }
+
+  .book-card__body {
+    padding: 10px 12px 12px;
+  }
+
+  .book-card__title {
+    font-size: 15px;
+  }
+
+  .book-card__footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
   }
 }
