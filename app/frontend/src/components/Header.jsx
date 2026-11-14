@@ -1,10 +1,11 @@
-// Site header: brand, nav, and the logged-in user with a Log out button.
-// The cart badge is added with the Cart page.
+// Site header: brand, nav, cart badge, and the logged-in user with a Log out button.
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../auth';
+import { useCart } from '../cart';
 
 export default function Header() {
   const { user, ready, logout } = useAuth();
+  const { count } = useCart();
 
   return (
     <header className="header">
@@ -20,6 +21,12 @@ export default function Header() {
 
           {ready && user && (
             <>
+              <NavLink to="/cart" className="nav__link nav__cart" aria-label={`Cart, ${count} item(s)`}>
+                Cart
+                <span className="cart-badge" data-testid="cart-badge" aria-hidden="true">
+                  {count}
+                </span>
+              </NavLink>
               <span className="nav__user" data-testid="header-user" title={user.name}>
                 <span className="nav__avatar" aria-hidden="true">
                   {user.name.charAt(0).toUpperCase()}

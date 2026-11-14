@@ -7,7 +7,10 @@ export const MSG = {
   EMAIL_FORMAT: 'Please enter a valid email address.',
   PASSWORD_WEAK: 'Password must be at least 8 characters and contain a letter and a number.',
   PASSWORD_MISMATCH: 'Passwords do not match.',
+  SEARCH_TOO_LONG: 'Search text must be 100 characters or less.',
 };
+
+export const MAX_SEARCH_LENGTH = 100;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PASSWORD_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
