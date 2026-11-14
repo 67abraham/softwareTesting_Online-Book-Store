@@ -3,7 +3,13 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { db } = require('../db');
-const { JWT_SECRET, JWT_EXPIRES_IN, BCRYPT_ROUNDS } = require('../config');
+const {
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
+  BCRYPT_ROUNDS,
+  LOGIN_MAX_FAILURES,
+  LOGIN_LOCK_MINUTES,
+} = require('../config');
 const { AppError, throwIfInvalid } = require('../middleware/errors');
 const { requireAuth } = require('../middleware/auth');
 const { MSG, isBlank, str, EMAIL_RE, PASSWORD_RE } = require('../middleware/validation');
@@ -14,6 +20,41 @@ const findByEmail = db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCA
 const insertUser = db.prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)');
 
 const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email });
+
+// ---------- Login protection ----------
+
+// Used when the email does not exist, so a wrong email takes as long as a
+// wrong password (stops attackers telling which emails are registered).
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', BCRYPT_ROUNDS);
+
+// Failed login attempts in memory: key "email|ip" -> { count, firstAt }.
+// Resets when the server restarts. Simple, but enough for this project.
+const failedLogins = new Map();
+const LOCK_MS = LOGIN_LOCK_MINUTES * 60 * 1000;
+const MSG_TOO_MANY = `Too many failed login attempts. Please try again in ${LOGIN_LOCK_MINUTES} minutes.`;
+
+function attemptKey(email, req) {
+  return `${email.toLowerCase()}|${req.ip}`;
+}
+
+function isLocked(key) {
+  const entry = failedLogins.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.firstAt > LOCK_MS) {
+    failedLogins.delete(key); // window has passed
+    return false;
+  }
+  return entry.count >= LOGIN_MAX_FAILURES;
+}
+
+function recordFailure(key) {
+  const entry = failedLogins.get(key);
+  if (!entry || Date.now() - entry.firstAt > LOCK_MS) {
+    failedLogins.set(key, { count: 1, firstAt: Date.now() });
+  } else {
+    entry.count += 1;
+  }
+}
 
 // POST /api/auth/register  { name, email, password, confirmPassword }
 router.post('/register', (req, res) => {
@@ -64,10 +105,19 @@ router.post('/login', (req, res) => {
   if (password === '') fields.password = MSG.REQUIRED;
   throwIfInvalid(fields);
 
+  const key = attemptKey(email, req);
+  if (isLocked(key)) {
+    throw new AppError(429, 'TOO_MANY_ATTEMPTS', MSG_TOO_MANY);
+  }
+
+  // Always run one bcrypt check, even for unknown emails (same response time).
   const user = findByEmail.get(email);
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+  const passwordOk = bcrypt.compareSync(password, user ? user.password_hash : DUMMY_HASH);
+  if (!user || !passwordOk) {
+    recordFailure(key);
     throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password.');
   }
+  failedLogins.delete(key); // successful login resets the counter
 
   const token = jwt.sign({ sub: user.id, name: user.name }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
