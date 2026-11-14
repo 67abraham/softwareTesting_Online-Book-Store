@@ -46,6 +46,16 @@ function validateCheckout(shipping = {}, payment = {}) {
     if (isBlank(p[key])) fields[key] = MSG.REQUIRED;
   }
 
+  // Longest allowed text for the free-text shipping fields.
+  const maxLength = [
+    ['fullName', 50, MSG.FULL_NAME_TOO_LONG],
+    ['address', 200, MSG.ADDRESS_TOO_LONG],
+    ['city', 100, MSG.CITY_TOO_LONG],
+  ];
+  for (const [key, max, message] of maxLength) {
+    if (!fields[key] && s[key].length > max) fields[key] = message;
+  }
+
   if (!fields.postalCode && !POSTAL_RE.test(s.postalCode)) fields.postalCode = MSG.POSTAL_CODE;
   if (!fields.phone && !PHONE_RE.test(s.phone)) fields.phone = MSG.PHONE;
   if (!fields.cardNumber && !CARD_RE.test(p.cardNumber)) fields.cardNumber = MSG.CARD_NUMBER;

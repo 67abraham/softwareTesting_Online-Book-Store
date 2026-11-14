@@ -35,7 +35,8 @@ export default function BookCard({ book }) {
       toast.success(data.message); // "{title}" was added to your cart.
     } catch (err) {
       // 409 out of stock / "Only {stock} copies available.", 400 "Quantity must be between 1 and 10."
-      toast.error(err.message);
+      // (A session-expired toast has already been shown by AuthProvider.)
+      if (!err.sessionExpired) toast.error(err.message);
     } finally {
       setAdding(false);
     }

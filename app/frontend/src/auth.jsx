@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api, setSessionExpiredHandler, tokenStore } from './api';
 import { useToast } from './components/Toast';
+import { clearShippingDraft } from './checkoutDraft';
 
 export const MSG_SESSION_EXPIRED = 'Your session has expired. Please log in again.';
 export const MSG_LOGGED_OUT = 'You have been logged out.';
@@ -67,6 +68,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     tokenStore.clear();
+    clearShippingDraft(); // don't leave an address behind on a shared computer
     setSignOut({ reason: 'logout', at: currentPath() });
     setUser(null);
     toast.success(MSG_LOGGED_OUT);

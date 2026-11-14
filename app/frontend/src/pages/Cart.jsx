@@ -34,6 +34,7 @@ export default function Cart() {
     api('/cart')
       .then(showCart)
       .catch((err) => {
+        if (err.sessionExpired) return; // already handled: toast shown, sent to Login
         setLoadError(err.message);
         toast.error(err.message);
       });
@@ -67,6 +68,7 @@ export default function Cart() {
       showCart(data.cart);
       toast.success(data.message); // "Cart updated."
     } catch (err) {
+      if (err.sessionExpired) return; // already handled: toast shown, sent to Login
       // 409 "Only {stock} copies available." / "Sorry, this book is out of stock."
       setRowError(item.bookId, err.message);
       toast.error(err.message);
@@ -84,7 +86,7 @@ export default function Cart() {
       showCart(data.cart);
       toast.success(data.message); // "{title}" was removed from your cart.
     } catch (err) {
-      toast.error(err.message);
+      if (!err.sessionExpired) toast.error(err.message);
       setBusy((b) => ({ ...b, [item.bookId]: false }));
     }
   }
