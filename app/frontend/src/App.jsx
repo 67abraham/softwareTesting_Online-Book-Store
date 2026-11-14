@@ -8,6 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import Home from './pages/Home';
+import Cart from './pages/Cart';
 
 // Temporary stand-in for pages that are not built yet.
 function ComingSoon({ title }) {
@@ -33,7 +34,7 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
 
                 {/* Logged-in users only (pages still to be built) */}
-                <Route path="/cart" element={<ProtectedRoute><ComingSoon title="Your cart" /></ProtectedRoute>} />
+                <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
                 <Route path="/checkout" element={<ProtectedRoute><ComingSoon title="Checkout" /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute><ComingSoon title="My orders" /></ProtectedRoute>} />
                 <Route path="/orders/:id" element={<ProtectedRoute><ComingSoon title="Order details" /></ProtectedRoute>} />
