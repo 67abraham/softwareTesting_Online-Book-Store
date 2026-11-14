@@ -9,7 +9,15 @@ import { useCart } from '../cart';
 import { useToast } from '../components/Toast';
 import FormField from '../components/FormField';
 import { formatPrice } from '../format';
-import { CARD_DIGITS, PAYMENT_FIELDS, SHIPPING_FIELDS, formatCardNumber, validateCheckout } from '../validation';
+import {
+  CARD_DIGITS,
+  NUMERIC_FIELDS,
+  PAYMENT_FIELDS,
+  SHIPPING_FIELDS,
+  formatCardNumber,
+  toHalfWidth,
+  validateCheckout,
+} from '../validation';
 import { clearShippingDraft, loadShippingDraft, saveShippingDraft } from '../checkoutDraft';
 
 const MSG_EMPTY_CART = 'Your cart is empty. Add books before checking out.';
@@ -113,7 +121,9 @@ export default function Checkout() {
   }, [user.id, fullName, address, city, postalCode, phone]);
 
   function handleChange(e) {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    // Number fields: full-width "４２４２" from an input method becomes "4242".
+    const value = NUMERIC_FIELDS.includes(name) ? toHalfWidth(e.target.value) : e.target.value;
     setValues((v) => ({ ...v, [name]: value }));
     if (errors[name]) setErrors(({ [name]: _removed, ...rest }) => rest);
   }
@@ -124,7 +134,9 @@ export default function Checkout() {
   // same number of digits.
   function handleCardNumberChange(e) {
     const input = e.target;
-    const raw = input.value;
+    // Full-width digits ("４２４２") from an input method count as digits too.
+    // (Full-width characters convert one-to-one, so the cursor position still matches.)
+    const raw = toHalfWidth(input.value);
     const caret = input.selectionStart ?? raw.length;
     const inputType = e.nativeEvent.inputType;
 
