@@ -409,9 +409,9 @@ export default function Checkout() {
 
           <fieldset className="card checkout__section">
             <legend className="checkout__legend">Payment</legend>
-            <p className="checkout__demo-note" data-testid="test-cards">
-              Demo shop, no real payment is taken. Test cards: <strong>4242 4242 4242 4242</strong> (approved),{' '}
-              {/* <strong>4000 0000 0000 0002</strong> (declined). */}
+            <p className="checkout__card-note" data-testid="card-note">
+              Enter the 16-digit number on the front of your card, the expiry date as MM/YY, and the 3-digit
+              security code (CVV) from the back. Your card details are only used for this order and are not saved.
             </p>
             <div className="form-grid">
               <div className="form-grid__full">
