@@ -1,8 +1,8 @@
 // F4 - Checkout (logged-in users only). Route: "/checkout"
 // Shipping details + mock payment. The server re-checks stock, works out the
 // total itself, creates the order and empties the cart.
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { useCart } from '../cart';
@@ -21,6 +21,27 @@ import {
 import { clearShippingDraft, loadShippingDraft, saveShippingDraft } from '../checkoutDraft';
 
 const MSG_EMPTY_CART = 'Your cart is empty. Add books before checking out.';
+const MSG_SELECTION_GONE = 'The books you selected are no longer in your cart.';
+
+// "/checkout?books=3,8" -> [3, 8] (the books ticked on the Cart page).
+// No list -> null, meaning "order the whole cart" (the original behaviour).
+function parseSelection(value) {
+  if (!value) return null;
+  const ids = [...new Set(value.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+  return ids.length > 0 ? ids : null;
+}
+
+// The part of the cart being ordered: the selected books, or the whole cart.
+function orderView(cart, selectedIds) {
+  if (!selectedIds) return cart;
+  const wanted = new Set(selectedIds);
+  const items = cart.items.filter((i) => wanted.has(i.bookId));
+  return {
+    items,
+    itemCount: items.reduce((sum, i) => sum + i.quantity, 0),
+    total: Math.round(items.reduce((sum, i) => sum + i.subtotal, 0) * 100) / 100,
+  };
+}
 const MSG_CART_CHANGED = 'Your cart has changed. Please check the order summary and place your order again.';
 
 // Items whose quantity is more than the stock left, with the same message the
@@ -75,6 +96,12 @@ export default function Checkout() {
   // Problem with the order as a whole (payment declined, stock changed, ...)
   const [banner, setBanner] = useState(null); // { text, cartLink }
   const [submitting, setSubmitting] = useState(false);
+
+  // Books ticked on the Cart page ("/checkout?books=3,8"); null = whole cart.
+  const [searchParams] = useSearchParams();
+  const selectedIds = useMemo(() => parseSelection(searchParams.get('books')), [searchParams]);
+  // The part of the cart being ordered (null until the cart has loaded).
+  const view = cart ? orderView(cart, selectedIds) : null;
 
   const loadCart = useCallback(() => {
     setLoadError('');
@@ -193,13 +220,15 @@ export default function Checkout() {
     }
     setCart(fresh);
     syncCart(fresh);
-    if (fresh.items.length === 0 || stockProblems(fresh).length > 0) {
-      // The empty-cart message or the stock warning is now on screen.
+    const freshView = orderView(fresh, selectedIds);
+    if (freshView.items.length === 0 || stockProblems(freshView).length > 0) {
+      // The empty-cart message, "selected books are no longer in your cart" or the
+      // stock warning is now on screen.
       setSubmitting(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (cartFingerprint(fresh) !== cartFingerprint(cart)) {
+    if (cartFingerprint(freshView) !== cartFingerprint(view)) {
       setSubmitting(false);
       toast.error(MSG_CART_CHANGED);
       setBanner({ text: MSG_CART_CHANGED, cartLink: false });
@@ -212,9 +241,15 @@ export default function Checkout() {
     try {
       const data = await api('/orders', {
         method: 'POST',
-        body: { shipping: pick(SHIPPING_FIELDS), payment: pick(PAYMENT_FIELDS) },
+        body: {
+          shipping: pick(SHIPPING_FIELDS),
+          payment: pick(PAYMENT_FIELDS),
+          // Only when books were ticked on the Cart page; otherwise the whole cart is ordered.
+          ...(selectedIds ? { bookIds: freshView.items.map((i) => i.bookId) } : {}),
+        },
       });
-      syncCart({ itemCount: 0 }); // the server has emptied the cart
+      // What is left in the cart: the books that were not selected (or nothing).
+      syncCart(data.cart || { itemCount: 0 });
       clearShippingDraft();
       toast.success(data.message); // "Order placed successfully! Your order number is ORD-..."
       // userId lets the confirmation page check the order belongs to whoever is viewing it.
@@ -234,6 +269,10 @@ export default function Checkout() {
         setErrors(err.fields || {});
       } else if (err.code === 'STOCK_CHANGED') {
         // '"{title}" has only {stock} copies left. Please update your cart.'
+        setBanner({ text: err.message, cartLink: true });
+        loadCart();
+      } else if (err.code === 'SELECTION_INVALID') {
+        // A selected book left the cart in the moment before ordering (e.g. another tab).
         setBanner({ text: err.message, cartLink: true });
         loadCart();
       } else if (err.code === 'EMPTY_CART') {
@@ -286,8 +325,24 @@ export default function Checkout() {
     );
   }
 
-  const problems = stockProblems(cart);
+  // Books were ticked on the Cart page, but none of them are in the cart any more.
+  if (selectedIds && view.items.length === 0) {
+    return (
+      <section className="checkout">
+        <h1 className="page-title">Checkout</h1>
+        <div className="empty-state checkout__notice" data-testid="selection-gone">
+          <p className="empty-state__title">{MSG_SELECTION_GONE}</p>
+          <Link to="/cart" className="btn btn--primary">
+            Back to cart
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  const problems = stockProblems(view);
   const lowStock = new Set(problems.map((p) => p.bookId));
+  const partialOrder = Boolean(selectedIds) && view.items.length < cart.items.length;
 
   const field = (id, label, props = {}) => (
     <FormField id={id} label={label} value={values[id]} onChange={handleChange} error={errors[id]} {...props} />
@@ -299,6 +354,18 @@ export default function Checkout() {
         <h1 className="page-title">Checkout</h1>
         <p className="page-lead">Enter your shipping and payment details to place your order.</p>
       </div>
+
+      {partialOrder && (
+        <div className="banner banner--info banner--with-action" data-testid="partial-order-note">
+          <span>
+            You are ordering {view.items.length} of the {cart.items.length} books in your cart. The other books
+            stay in your cart.
+          </span>
+          <Link to="/cart" className="btn btn--small">
+            Change selection
+          </Link>
+        </div>
+      )}
 
       {banner && (
         <div className="banner banner--error banner--with-action" data-testid="checkout-banner">
@@ -366,7 +433,7 @@ export default function Checkout() {
             className="btn btn--primary btn--block checkout__submit"
             disabled={submitting || problems.length > 0}
           >
-            {submitting ? 'Placing order…' : `Place order · ${formatPrice(cart.total)}`}
+            {submitting ? 'Placing order…' : `Place order · ${formatPrice(view.total)}`}
           </button>
           {problems.length > 0 && (
             <p className="checkout__submit-note">Update your cart to continue.</p>
@@ -376,7 +443,7 @@ export default function Checkout() {
         <aside className="cart__summary card" aria-label="Order summary">
           <h2 className="cart__summary-title">Order summary</h2>
           <ul className="checkout__lines">
-            {cart.items.map((item) => (
+            {view.items.map((item) => (
               <li key={item.bookId} className="checkout__line" data-testid="checkout-line">
                 <span className="checkout__line-title">
                   {item.title} <span className="checkout__line-qty">× {item.quantity}</span>
@@ -391,11 +458,11 @@ export default function Checkout() {
           <dl className="summary">
             <div className="summary__row">
               <dt>Items</dt>
-              <dd>{cart.itemCount}</dd>
+              <dd>{view.itemCount}</dd>
             </div>
             <div className="summary__row summary__row--total">
               <dt>Total</dt>
-              <dd data-testid="checkout-total">{formatPrice(cart.total)}</dd>
+              <dd data-testid="checkout-total">{formatPrice(view.total)}</dd>
             </div>
           </dl>
           <Link to="/cart" className="cart__continue">
