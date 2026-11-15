@@ -89,6 +89,7 @@ function nextOrderNo(now = new Date()) {
 const getStock = db.prepare('SELECT stock FROM books WHERE id = ?');
 const decrementStock = db.prepare('UPDATE books SET stock = stock - ? WHERE id = ?');
 const clearCart = db.prepare('DELETE FROM cart_items WHERE user_id = ?');
+const removeCartItem = db.prepare('DELETE FROM cart_items WHERE user_id = ? AND book_id = ?');
 const insertOrder = db.prepare(`
   INSERT INTO orders (order_no, user_id, total, status, ship_name, ship_address, ship_city, ship_postal, ship_phone, created_at)
   VALUES (@orderNo, @userId, @total, 'Placed', @fullName, @address, @city, @postalCode, @phone, datetime('now'))
@@ -97,15 +98,38 @@ const insertOrderItem = db.prepare(
   'INSERT INTO order_items (order_id, book_id, title, unit_price, quantity) VALUES (?, ?, ?, ?, ?)'
 );
 
+const MSG_BAD_SELECTION = 'Some of the selected books are not in your cart. Please review your cart.';
+
+// Optional list of book ids the user ticked on the Cart page.
+// Missing or empty -> null, meaning "order the whole cart" (the original behaviour).
+function parseBookIds(value) {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value) || !value.every((id) => Number.isInteger(id) && id > 0)) {
+    throw new AppError(400, 'SELECTION_INVALID', MSG_BAD_SELECTION);
+  }
+  return value.length > 0 ? [...new Set(value)] : null;
+}
+
 // Runs inside one transaction so stock check + order creation are atomic.
-const placeOrder = db.transaction((userId, shipping, payment) => {
+// bookIds: null = whole cart, or the ids of the selected cart items.
+const placeOrder = db.transaction((userId, shipping, payment, bookIds) => {
   const cart = getCart(userId);
   if (cart.items.length === 0) {
     throw new AppError(400, 'EMPTY_CART', 'Your cart is empty. Add books before checking out.');
   }
 
+  // Only the selected books (every selected id must still be in the cart).
+  let items = cart.items;
+  if (bookIds) {
+    const wanted = new Set(bookIds);
+    items = cart.items.filter((i) => wanted.has(i.bookId));
+    if (items.length !== wanted.size) {
+      throw new AppError(400, 'SELECTION_INVALID', MSG_BAD_SELECTION);
+    }
+  }
+
   // Re-check stock with the latest values.
-  for (const item of cart.items) {
+  for (const item of items) {
     const { stock } = getStock.get(item.bookId);
     if (item.quantity > stock) {
       throw new AppError(409, 'STOCK_CHANGED', `"${item.title}" has only ${stock} copies left. Please update your cart.`);
@@ -118,23 +142,31 @@ const placeOrder = db.transaction((userId, shipping, payment) => {
   }
 
   // Total is calculated on the server from current prices.
-  const total = round2(cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0));
+  const total = round2(items.reduce((sum, i) => sum + i.price * i.quantity, 0));
   const orderNo = nextOrderNo();
   const info = insertOrder.run({ orderNo, userId, total, ...shipping });
   const orderId = info.lastInsertRowid;
 
-  for (const item of cart.items) {
+  for (const item of items) {
     insertOrderItem.run(orderId, item.bookId, item.title, item.price, item.quantity);
     decrementStock.run(item.quantity, item.bookId);
   }
-  clearCart.run(userId);
 
-  return { id: Number(orderId), orderNo, total, status: 'Placed', itemCount: cart.itemCount };
+  // Remove only the ordered books; anything not selected stays in the cart.
+  if (bookIds) {
+    for (const item of items) removeCartItem.run(userId, item.bookId);
+  } else {
+    clearCart.run(userId);
+  }
+
+  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
+  return { id: Number(orderId), orderNo, total, status: 'Placed', itemCount };
 });
 
 // ---------- Routes ----------
 
-// POST /api/orders  { shipping: {...}, payment: {...} }
+// POST /api/orders  { shipping: {...}, payment: {...}, bookIds?: [3, 8] }
+// bookIds is optional: without it the whole cart is ordered.
 router.post('/', (req, res) => {
   const body = req.body || {};
 
@@ -143,12 +175,14 @@ router.post('/', (req, res) => {
     throw new AppError(400, 'EMPTY_CART', 'Your cart is empty. Add books before checking out.');
   }
 
+  const bookIds = parseBookIds(body.bookIds);
   const { shipping, payment } = validateCheckout(body.shipping, body.payment);
-  const order = placeOrder(req.user.id, shipping, payment);
+  const order = placeOrder(req.user.id, shipping, payment, bookIds);
 
   res.status(201).json({
     message: `Order placed successfully! Your order number is ${order.orderNo}.`,
     order,
+    cart: getCart(req.user.id), // what is left in the cart (empty after a whole-cart order)
   });
 });
 

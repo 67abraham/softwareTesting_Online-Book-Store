@@ -822,7 +822,7 @@ select.field__input {
 .cart-item {
   display: grid;
   /* fixed widths for quantity and subtotal so every row lines up */
-  grid-template-columns: 56px minmax(0, 1fr) 176px 96px;
+  grid-template-columns: 20px 56px minmax(0, 1fr) 176px 96px;
   align-items: start;
   gap: 16px;
   padding: 20px 0;
@@ -1006,8 +1006,8 @@ select.field__input {
 
   /* cover + info on the first row; quantity and subtotal/remove below */
   .cart-item {
-    grid-template-columns: 48px minmax(0, 1fr);
-    gap: 12px 14px;
+    grid-template-columns: 20px 48px minmax(0, 1fr);
+    gap: 12px 12px;
   }
 
   .cart-item__cover {
@@ -1503,5 +1503,81 @@ select.field__input {
   .items-table tfoot th,
   .items-table tfoot td {
     font-size: 16px;
+  }
+}
+
+/* ---------- Cart: choose books for this order ---------- */
+
+.cart__main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cart__select-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 20px;
+}
+
+.cart__select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cart__select-hint {
+  flex: 1;
+  min-width: 200px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.cart__select-clear {
+  color: var(--text-muted);
+}
+
+.cart__select-all input,
+.cart-item__select {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.cart-item__select {
+  margin-top: 29px; /* lines up with the middle of the book cover */
+}
+
+.cart-item--selected .cart-item__cover {
+  box-shadow: inset 5px 0 0 rgb(0 0 0 / 0.18), 0 0 0 3px var(--primary-soft), 0 0 0 4px var(--primary);
+}
+
+.summary__selected {
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  background: var(--primary-soft);
+}
+
+.summary__selected dt,
+.summary__selected dd {
+  color: var(--primary-hover);
+  font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .cart__select-bar {
+    padding: 12px 16px;
+  }
+
+  .cart-item__select {
+    margin-top: 23px;
   }
 }
