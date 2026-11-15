@@ -24,3 +24,35 @@ A successful login resets the counter.
 - Postman runs and screenshot scripts should use at most 4 wrong-password attempts per email,
   or restart the backend before each run.
 - To change the limits: `LOGIN_MAX_FAILURES=10 LOGIN_LOCK_MINUTES=1 npm run dev`.
+
+## API tests (Postman)
+
+`app/postman/OnlineBookStore.postman_collection.json` holds 64 API tests in 6 folders
+(General, F1 Register and log in, F2 Search, F3 Cart, F4 Checkout, F5 Order history).
+Every request checks the status code and the exact message the app shows.
+
+```bash
+cd app/backend && npm run seed && npm run dev            # API must be running on port 4000
+npx newman run app/postman/OnlineBookStore.postman_collection.json
+# or, with the Postman CLI:
+postman collection run app/postman/OnlineBookStore.postman_collection.json
+```
+
+- Expected result on seeded data: 74 requests (64 tests + 10 setup calls), 180 assertions, 0 failures.
+- The collection empties the cart it uses and registers a unique email each run, so it can be run again
+  without reseeding, unless the data was changed by hand (for example an order placed as Bob).
+- You can also import the file into the Postman app and use **Run collection**.
+- The Postman CLI does not start on macOS 12 (`dyld: Symbol not found: __libcpp_verbose_abort`); use Newman there.
+
+## Report screenshots
+
+`app/scripts/screenshots.js` captures the 20 screenshots used in the report into `report/images/`.
+
+```bash
+# backend (port 4000) and frontend (port 5173) must be running
+cd app/scripts && npm install && npm run screenshots
+```
+
+It reseeds the database before it starts (so the pictures always show the same data), drives the app in
+headless Chrome at 1280×800, and reseeds again at the end. Set `CHROME_PATH` if Chrome is installed somewhere
+else, or `APP_URL` if the frontend runs on another address.

@@ -1,0 +1,2705 @@
+{
+  "info": {
+    "name": "Online Book Store API",
+    "description": "API tests for the Online Book Store System (Software Testing course project).\n\nBefore running: start the backend (`cd app/backend && npm run seed && npm run dev`).\nThe tests expect freshly seeded data, so run `npm run seed` before each full run.\n\nRun from the command line: `postman collection run app/postman/OnlineBookStore.postman_collection.json`\nor with Newman: `npx newman run app/postman/OnlineBookStore.postman_collection.json`.\n\nEvery request checks the status code and the exact message from the CLAUDE.md contract.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000/api"
+    },
+    {
+      "key": "expiredToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsIm5hbWUiOiJBbGljZSBKb2huc29uIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjE3MDAwMDM2MDB9.5pK8hqNUxUo19mzM6tRYEskyL8z17RAISVThMQlFVNs",
+      "description": "A token that expired in 2023, signed with the development secret."
+    },
+    {
+      "key": "aliceToken",
+      "value": ""
+    },
+    {
+      "key": "bobToken",
+      "value": ""
+    },
+    {
+      "key": "newEmail",
+      "value": ""
+    },
+    {
+      "key": "lockEmail",
+      "value": ""
+    },
+    {
+      "key": "lastOrderId",
+      "value": ""
+    },
+    {
+      "key": "lastOrderNo",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 General",
+      "description": "Health check and errors that apply to every endpoint.",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"status is ok\", () => { const b = pm.response.json(); pm.expect(b.status).to.eql('ok'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown route -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/does-not-exist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "does-not-exist"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error code is NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('NOT_FOUND'));",
+                  "pm.test('Error message: ' + \"Route not found.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Route not found.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Malformed JSON -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"alice@example.com\", bad json",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error message: ' + \"Request body must be valid JSON.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Request body must be valid JSON.\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "F1 Register and log in",
+      "description": "Register, login, current user, session expiry and login lockout.",
+      "item": [
+        {
+          "name": "Register - success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"{{newEmail}}\",\n  \"password\": \"Password1\",\n  \"confirmPassword\": \"Password1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('newEmail', 'tester+' + Date.now() + '@example.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Message: ' + \"Account created successfully. Please log in.\", () => pm.expect(pm.response.json().message).to.eql(\"Account created successfully. Please log in.\"));",
+                  "pm.test(\"email saved in lower case\", () => { const b = pm.response.json(); pm.expect(b.user.email).to.eql(pm.collectionVariables.get('newEmail').toLowerCase()); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - all fields empty -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));",
+                  "pm.test('Error message: ' + \"Please correct the highlighted fields.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Please correct the highlighted fields.\"));",
+                  "pm.test('Field \"name\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.name).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"email\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.email).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"password\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.password).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"confirmPassword\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.confirmPassword).to.eql(\"This field is required.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - invalid values -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"A\",\n  \"email\": \"alice@\",\n  \"password\": \"abc\",\n  \"confirmPassword\": \"abd\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Field \"name\": ' + \"Name must be between 2 and 50 characters.\", () => pm.expect(pm.response.json().error.fields.name).to.eql(\"Name must be between 2 and 50 characters.\"));",
+                  "pm.test('Field \"email\": ' + \"Please enter a valid email address.\", () => pm.expect(pm.response.json().error.fields.email).to.eql(\"Please enter a valid email address.\"));",
+                  "pm.test('Field \"password\": ' + \"Password must be at least 8 characters and contain a letter and a number.\", () => pm.expect(pm.response.json().error.fields.password).to.eql(\"Password must be at least 8 characters and contain a letter and a number.\"));",
+                  "pm.test('Field \"confirmPassword\": ' + \"Passwords do not match.\", () => pm.expect(pm.response.json().error.fields.confirmPassword).to.eql(\"Passwords do not match.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - password without a digit -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"nodigit@example.com\",\n  \"password\": \"Password\",\n  \"confirmPassword\": \"Password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Field \"password\": ' + \"Password must be at least 8 characters and contain a letter and a number.\", () => pm.expect(pm.response.json().error.fields.password).to.eql(\"Password must be at least 8 characters and contain a letter and a number.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - duplicate email (any case) -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Again\",\n  \"email\": \"ALICE@example.com\",\n  \"password\": \"Password1\",\n  \"confirmPassword\": \"Password1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error code is EMAIL_EXISTS', () => pm.expect(pm.response.json().error.code).to.eql('EMAIL_EXISTS'));",
+                  "pm.test('Error message: ' + \"This email is already registered.\", () => pm.expect(pm.response.json().error.message).to.eql(\"This email is already registered.\"));",
+                  "pm.test('Field \"email\": ' + \"This email is already registered.\", () => pm.expect(pm.response.json().error.fields.email).to.eql(\"This email is already registered.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - missing fields -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Field \"email\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.email).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"password\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.password).to.eql(\"This field is required.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - wrong password -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"bob@example.com\",\n  \"password\": \"WrongPass1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error code is INVALID_CREDENTIALS', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_CREDENTIALS'));",
+                  "pm.test('Error message: ' + \"Invalid email or password.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Invalid email or password.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - unknown email -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody@example.com\",\n  \"password\": \"Password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message: ' + \"Invalid email or password.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Invalid email or password.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Alice success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"Password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"Welcome back, Alice Johnson!\", () => pm.expect(pm.response.json().message).to.eql(\"Welcome back, Alice Johnson!\"));",
+                  "pm.test(\"returns a token\", () => { const b = pm.response.json(); pm.expect(b.token).to.be.a(\"string\"); });",
+                  "pm.collectionVariables.set('aliceToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Bob success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"bob@example.com\",\n  \"password\": \"Password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"Welcome back, Bob Smith!\", () => pm.expect(pm.response.json().message).to.eql(\"Welcome back, Bob Smith!\"));",
+                  "pm.collectionVariables.set('bobToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - 6th failure in 15 min -> 429 lockout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "The pre-request script makes 5 failed logins for a fresh email, so this 6th attempt is blocked.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{lockEmail}}\",\n  \"password\": \"WrongPass1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('lockEmail', 'locktest+' + Date.now() + '@example.com');",
+                  "for (let i = 0; i < 5; i++) {",
+                  "  pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/auth/login', method: 'POST', header: { 'Content-Type': 'application/json' },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({ email: pm.collectionVariables.get('lockEmail'), password: 'WrongPass1' }) } }, () => {});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 429', () => pm.response.to.have.status(429));",
+                  "pm.test('Error code is TOO_MANY_ATTEMPTS', () => pm.expect(pm.response.json().error.code).to.eql('TOO_MANY_ATTEMPTS'));",
+                  "pm.test('Error message: ' + \"Too many failed login attempts. Please try again in 15 minutes.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Too many failed login attempts. Please try again in 15 minutes.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me - logged in",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"is Alice\", () => { const b = pm.response.json(); pm.expect(b.user.email).to.eql('alice@example.com'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me - no token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error code is UNAUTHENTICATED', () => pm.expect(pm.response.json().error.code).to.eql('UNAUTHENTICATED'));",
+                  "pm.test('Error message: ' + \"Please log in to continue.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Please log in to continue.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me - invalid token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer not-a-real-token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message: ' + \"Please log in to continue.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Please log in to continue.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me - expired token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{expiredToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error code is TOKEN_EXPIRED', () => pm.expect(pm.response.json().error.code).to.eql('TOKEN_EXPIRED'));",
+                  "pm.test('Error message: ' + \"Your session has expired. Please log in again.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Your session has expired. Please log in again.\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "F2 Search books",
+      "description": "Title search, category filter and book details. Open to guests.",
+      "item": [
+        {
+          "name": "Categories - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"6 categories\", () => { const b = pm.response.json(); pm.expect(b.categories).to.have.lengthOf(6); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - all",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"30 book(s) found.\", () => pm.expect(pm.response.json().message).to.eql(\"30 book(s) found.\"));",
+                  "pm.test(\"30 books returned\", () => { const b = pm.response.json(); pm.expect(b.books).to.have.lengthOf(30); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - title search, spaces trimmed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books?q=%20%20harbor%20%20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "%20%20harbor%20%20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"1 book(s) found.\", () => pm.expect(pm.response.json().message).to.eql(\"1 book(s) found.\"));",
+                  "pm.test(\"query trimmed\", () => { const b = pm.response.json(); pm.expect(b.query).to.eql('harbor'); });",
+                  "pm.test(\"found The Silent Harbor\", () => { const b = pm.response.json(); pm.expect(b.books[0].title).to.eql('The Silent Harbor'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - case-insensitive partial match",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books?q=THE",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "THE"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"14 book(s) found.\", () => pm.expect(pm.response.json().message).to.eql(\"14 book(s) found.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - category filter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books?category=Science",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Science"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"5 book(s) found.\", () => pm.expect(pm.response.json().message).to.eql(\"5 book(s) found.\"));",
+                  "pm.test(\"all Science\", () => { const b = pm.response.json(); b.books.forEach((x) => pm.expect(x.category).to.eql('Science')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - title + category combined",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books?q=the&category=Science",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "the"
+                },
+                {
+                  "key": "category",
+                  "value": "Science"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"2 book(s) found.\", () => pm.expect(pm.response.json().message).to.eql(\"2 book(s) found.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - stock status labels",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"In stock / Only N left / Out of stock all present\", () => { const b = pm.response.json(); const s = b.books.map((x) => x.stockStatus); ['In stock', 'Only 1 left', 'Out of stock'].forEach((l) => pm.expect(s).to.include(l)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - no results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books?q=zzz",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "zzz"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"No books found matching \\\"zzz\\\". Try a different title or category.\", () => pm.expect(pm.response.json().message).to.eql(\"No books found matching \\\"zzz\\\". Try a different title or category.\"));",
+                  "pm.test(\"empty list\", () => { const b = pm.response.json(); pm.expect(b.books).to.have.lengthOf(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - SQL-like text is plain text",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books?q=%27%20OR%201%3D1%20--",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "%27%20OR%201%3D1%20--"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"No books found matching \\\"' OR 1=1 --\\\". Try a different title or category.\", () => pm.expect(pm.response.json().message).to.eql(\"No books found matching \\\"' OR 1=1 --\\\". Try a different title or category.\"));",
+                  "pm.test(\"no books leaked\", () => { const b = pm.response.json(); pm.expect(b.count).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - search 100 chars (boundary, allowed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Books - search 101 chars -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error message: ' + \"Search text must be 100 characters or less.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Search text must be 100 characters or less.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Book detail - found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books",
+                "1"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"out-of-stock book\", () => { const b = pm.response.json(); pm.expect(b.book.stockStatus).to.eql('Out of stock'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Book detail - not found -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books/999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books",
+                "999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error message: ' + \"Book not found.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Book not found.\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "F3 Shopping cart",
+      "description": "Alice's cart. The first request empties it, so the folder can be re-run.",
+      "item": [
+        {
+          "name": "Cart - guest -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message: ' + \"Please log in to continue.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Please log in to continue.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - guest -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": 21,\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message: ' + \"Please log in to add books to your cart.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Please log in to add books to your cart.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": 21,\n  \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({\n    url: pm.collectionVariables.get('baseUrl') + \"/cart\",\n    method: 'GET',\n    header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('aliceToken') },\n    \n  }, (err, res) => {",
+                  "  if (err) return;",
+                  "  (res.json().items || []).forEach((i) => pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('baseUrl') + '/cart/' + i.bookId, method: 'DELETE',",
+                  "    header: { Authorization: 'Bearer ' + pm.collectionVariables.get('aliceToken') } }, () => {}));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Message: ' + \"\\\"The Brave Little Turtle\\\" was added to your cart.\", () => pm.expect(pm.response.json().message).to.eql(\"\\\"The Brave Little Turtle\\\" was added to your cart.\"));",
+                  "pm.test(\"badge count 2\", () => { const b = pm.response.json(); pm.expect(b.cart.itemCount).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - same book again merges quantity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": 21,\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"quantity now 3\", () => { const b = pm.response.json(); pm.expect(b.cart.items[0].quantity).to.eql(3); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - quantity 0 -> 400 (boundary)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": 21,\n  \"quantity\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error message: ' + \"Quantity must be between 1 and 10.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Quantity must be between 1 and 10.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - quantity 11 -> 400 (boundary)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": 23,\n  \"quantity\": 11\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error message: ' + \"Quantity must be between 1 and 10.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Quantity must be between 1 and 10.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - total would pass 10 -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": 21,\n  \"quantity\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error message: ' + \"Quantity must be between 1 and 10.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Quantity must be between 1 and 10.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - out of stock -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": 1,\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error code is OUT_OF_STOCK', () => pm.expect(pm.response.json().error.code).to.eql('OUT_OF_STOCK'));",
+                  "pm.test('Error message: ' + \"Sorry, this book is out of stock.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Sorry, this book is out of stock.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - more than stock -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": 11,\n  \"quantity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error message: ' + \"Only 2 copies available.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Only 2 copies available.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add - book does not exist -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": 999,\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error message: ' + \"Book not found.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Book not found.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update - quantity 5",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/21",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "21"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"Cart updated.\", () => pm.expect(pm.response.json().message).to.eql(\"Cart updated.\"));",
+                  "pm.test(\"subtotal 5 x 7.99 = 39.95\", () => { const b = pm.response.json(); pm.expect(b.cart.items[0].subtotal).to.eql(39.95); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update - quantity 10 (boundary, allowed)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/21",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "21"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"Cart updated.\", () => pm.expect(pm.response.json().message).to.eql(\"Cart updated.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update - quantity 11 -> 400",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/21",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "21"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 11\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error message: ' + \"Quantity must be between 1 and 10.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Quantity must be between 1 and 10.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update - book not in cart -> 404",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/23",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "23"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error message: ' + \"This book is not in your cart.\", () => pm.expect(pm.response.json().error.message).to.eql(\"This book is not in your cart.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cart - view with total (2 decimals)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"total 10 x 7.99 = 79.90\", () => { const b = pm.response.json(); pm.expect(b.total).to.eql(79.9); });",
+                  "pm.test(\"itemCount 10\", () => { const b = pm.response.json(); pm.expect(b.itemCount).to.eql(10); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove - success",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/21",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "21"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"\\\"The Brave Little Turtle\\\" was removed from your cart.\", () => pm.expect(pm.response.json().message).to.eql(\"\\\"The Brave Little Turtle\\\" was removed from your cart.\"));",
+                  "pm.test(\"cart empty\", () => { const b = pm.response.json(); pm.expect(b.cart.itemCount).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove - book not in cart -> 404",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/21",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "21"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error message: ' + \"This book is not in your cart.\", () => pm.expect(pm.response.json().error.message).to.eql(\"This book is not in your cart.\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "F4 Checkout",
+      "description": "Checkout for Alice. The cart is emptied or filled by pre-request scripts. Mock cards: 4242 4242 4242 4242 succeeds, 4000 0000 0000 0002 is declined.",
+      "item": [
+        {
+          "name": "Checkout - guest -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"fullName\": \"Alice Johnson\",\n    \"address\": \"12 Maple Street\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"phone\": \"+1 555 010 1234\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242 4242 4242 4242\",\n    \"expiry\": \"12/30\",\n    \"cvv\": \"123\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message: ' + \"Please log in to continue.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Please log in to continue.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout - empty cart -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"fullName\": \"Alice Johnson\",\n    \"address\": \"12 Maple Street\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"phone\": \"+1 555 010 1234\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242 4242 4242 4242\",\n    \"expiry\": \"12/30\",\n    \"cvv\": \"123\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({\n    url: pm.collectionVariables.get('baseUrl') + \"/cart\",\n    method: 'GET',\n    header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('aliceToken') },\n    \n  }, (err, res) => {",
+                  "  if (err) return;",
+                  "  (res.json().items || []).forEach((i) => pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('baseUrl') + '/cart/' + i.bookId, method: 'DELETE',",
+                  "    header: { Authorization: 'Bearer ' + pm.collectionVariables.get('aliceToken') } }, () => {}));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is EMPTY_CART', () => pm.expect(pm.response.json().error.code).to.eql('EMPTY_CART'));",
+                  "pm.test('Error message: ' + \"Your cart is empty. Add books before checking out.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Your cart is empty. Add books before checking out.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout - all fields empty -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {},\n  \"payment\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({\n    url: pm.collectionVariables.get('baseUrl') + \"/cart\",\n    method: 'GET',\n    header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('aliceToken') },\n    \n  }, (err, res) => {",
+                  "  if (err) return;",
+                  "  (res.json().items || []).forEach((i) => pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('baseUrl') + '/cart/' + i.bookId, method: 'DELETE',",
+                  "    header: { Authorization: 'Bearer ' + pm.collectionVariables.get('aliceToken') } }, () => {}));",
+                  "});",
+                  "setTimeout(() => {",
+                  "  pm.sendRequest({\n    url: pm.collectionVariables.get('baseUrl') + \"/cart\",\n    method: 'POST',\n    header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('aliceToken') },\n    body: { mode: 'raw', raw: JSON.stringify({\"bookId\":21,\"quantity\":1}) }\n  }, () => {});",
+                  "  pm.sendRequest({\n    url: pm.collectionVariables.get('baseUrl') + \"/cart\",\n    method: 'POST',\n    header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('aliceToken') },\n    body: { mode: 'raw', raw: JSON.stringify({\"bookId\":24,\"quantity\":2}) }\n  }, () => {});",
+                  "}, 300);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error message: ' + \"Please correct the highlighted fields.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Please correct the highlighted fields.\"));",
+                  "pm.test('Field \"fullName\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.fullName).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"address\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.address).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"city\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.city).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"postalCode\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.postalCode).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"phone\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.phone).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"cardNumber\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.cardNumber).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"expiry\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.expiry).to.eql(\"This field is required.\"));",
+                  "pm.test('Field \"cvv\": ' + \"This field is required.\", () => pm.expect(pm.response.json().error.fields.cvv).to.eql(\"This field is required.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout - invalid formats -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"fullName\": \"Alice Johnson\",\n    \"address\": \"12 Maple Street\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12\",\n    \"phone\": \"abc\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242 4242\",\n    \"expiry\": \"13/30\",\n    \"cvv\": \"12\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Field \"postalCode\": ' + \"Postal code must be 4 to 10 digits.\", () => pm.expect(pm.response.json().error.fields.postalCode).to.eql(\"Postal code must be 4 to 10 digits.\"));",
+                  "pm.test('Field \"phone\": ' + \"Please enter a valid phone number.\", () => pm.expect(pm.response.json().error.fields.phone).to.eql(\"Please enter a valid phone number.\"));",
+                  "pm.test('Field \"cardNumber\": ' + \"Card number must be 16 digits.\", () => pm.expect(pm.response.json().error.fields.cardNumber).to.eql(\"Card number must be 16 digits.\"));",
+                  "pm.test('Field \"expiry\": ' + \"Expiry date must be in MM/YY format.\", () => pm.expect(pm.response.json().error.fields.expiry).to.eql(\"Expiry date must be in MM/YY format.\"));",
+                  "pm.test('Field \"cvv\": ' + \"CVV must be 3 digits.\", () => pm.expect(pm.response.json().error.fields.cvv).to.eql(\"CVV must be 3 digits.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout - expired card -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"fullName\": \"Alice Johnson\",\n    \"address\": \"12 Maple Street\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"phone\": \"+1 555 010 1234\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242 4242 4242 4242\",\n    \"expiry\": \"01/20\",\n    \"cvv\": \"123\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Field \"expiry\": ' + \"Card has expired.\", () => pm.expect(pm.response.json().error.fields.expiry).to.eql(\"Card has expired.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout - text too long -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"fullName\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n    \"address\": \"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\",\n    \"city\": \"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\",\n    \"postalCode\": \"12345\",\n    \"phone\": \"+1 555 010 1234\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242 4242 4242 4242\",\n    \"expiry\": \"12/30\",\n    \"cvv\": \"123\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Field \"fullName\": ' + \"Full name must be 50 characters or less.\", () => pm.expect(pm.response.json().error.fields.fullName).to.eql(\"Full name must be 50 characters or less.\"));",
+                  "pm.test('Field \"address\": ' + \"Address must be 200 characters or less.\", () => pm.expect(pm.response.json().error.fields.address).to.eql(\"Address must be 200 characters or less.\"));",
+                  "pm.test('Field \"city\": ' + \"City must be 100 characters or less.\", () => pm.expect(pm.response.json().error.fields.city).to.eql(\"City must be 100 characters or less.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout - card declined -> 402",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"fullName\": \"Alice Johnson\",\n    \"address\": \"12 Maple Street\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"phone\": \"+1 555 010 1234\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4000 0000 0000 0002\",\n    \"expiry\": \"12/30\",\n    \"cvv\": \"123\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 402', () => pm.response.to.have.status(402));",
+                  "pm.test('Error code is PAYMENT_DECLINED', () => pm.expect(pm.response.json().error.code).to.eql('PAYMENT_DECLINED'));",
+                  "pm.test('Error message: ' + \"Payment declined. Please use a different card.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Payment declined. Please use a different card.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout - invalid book selection -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"fullName\": \"Alice Johnson\",\n    \"address\": \"12 Maple Street\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"phone\": \"+1 555 010 1234\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242 4242 4242 4242\",\n    \"expiry\": \"12/30\",\n    \"cvv\": \"123\"\n  },\n  \"bookIds\": [\n    999\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is SELECTION_INVALID', () => pm.expect(pm.response.json().error.code).to.eql('SELECTION_INVALID'));",
+                  "pm.test('Error message: ' + \"Some of the selected books are not in your cart. Please review your cart.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Some of the selected books are not in your cart. Please review your cart.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout - selected books only (partial order)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"fullName\": \"Alice Johnson\",\n    \"address\": \"12 Maple Street\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"phone\": \"+1 555 010 1234\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242 4242 4242 4242\",\n    \"expiry\": \"12/30\",\n    \"cvv\": \"123\"\n  },\n  \"bookIds\": [\n    21\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"success message with order number\", () => { const b = pm.response.json(); pm.expect(b.message).to.match(/^Order placed successfully! Your order number is ORD-\\d{8}-\\d{4}\\.$/); });",
+                  "pm.test(\"only 1 item ordered, total 7.99\", () => { const b = pm.response.json(); pm.expect(b.order.itemCount).to.eql(1); pm.expect(b.order.total).to.eql(7.99); });",
+                  "pm.test(\"the unselected book stays in the cart\", () => { const b = pm.response.json(); pm.expect(b.cart.itemCount).to.eql(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Checkout - whole cart (no selection)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping\": {\n    \"fullName\": \"Alice Johnson\",\n    \"address\": \"12 Maple Street\",\n    \"city\": \"Springfield\",\n    \"postalCode\": \"12345\",\n    \"phone\": \"+1 555 010 1234\"\n  },\n  \"payment\": {\n    \"cardNumber\": \"4242 4242 4242 4242\",\n    \"expiry\": \"12/30\",\n    \"cvv\": \"123\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"status Placed\", () => { const b = pm.response.json(); pm.expect(b.order.status).to.eql('Placed'); });",
+                  "pm.test(\"server total 2 x 5.99 = 11.98\", () => { const b = pm.response.json(); pm.expect(b.order.total).to.eql(11.98); });",
+                  "pm.test(\"cart now empty\", () => { const b = pm.response.json(); pm.expect(b.cart.itemCount).to.eql(0); });",
+                  "pm.collectionVariables.set('lastOrderId', pm.response.json().order.id); pm.collectionVariables.set('lastOrderNo', pm.response.json().order.orderNo);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "F5 Order history",
+      "description": "Order list and details; users only see their own orders.",
+      "item": [
+        {
+          "name": "Orders - guest -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message: ' + \"Please log in to continue.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Please log in to continue.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Orders - Alice, newest first",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"newest is the order just placed\", () => { const b = pm.response.json(); pm.expect(b.orders[0].orderNo).to.eql(pm.collectionVariables.get('lastOrderNo')); });",
+                  "pm.test(\"sorted newest first\", () => { const b = pm.response.json(); const d = b.orders.map((o) => o.createdAt); pm.expect(d).to.eql([...d].sort().reverse()); });",
+                  "pm.test(\"seed statuses present\", () => { const b = pm.response.json(); const s = b.orders.map((o) => o.status); ['Delivered', 'Shipped', 'Cancelled', 'Placed'].forEach((x) => pm.expect(s).to.include(x)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order detail - own order",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{lastOrderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"has items, shipping and total\", () => { const b = pm.response.json(); pm.expect(b.order.items.length).to.be.above(0); pm.expect(b.order.shipping.fullName).to.eql(\"Alice Johnson\"); pm.expect(b.order.total).to.eql(11.98); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order detail - another user's order -> 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bobToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{lastOrderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error message: ' + \"Order not found.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Order not found.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order detail - does not exist -> 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{aliceToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error message: ' + \"Order not found.\", () => pm.expect(pm.response.json().error.message).to.eql(\"Order not found.\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Orders - Bob has none (fresh seed)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bobToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Passes on freshly seeded data, where Bob has no orders."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message: ' + \"You have not placed any orders yet.\", () => pm.expect(pm.response.json().message).to.eql(\"You have not placed any orders yet.\"));",
+                  "pm.test(\"empty list\", () => { const b = pm.response.json(); pm.expect(b.orders).to.have.lengthOf(0); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
