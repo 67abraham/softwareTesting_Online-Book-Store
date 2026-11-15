@@ -28,6 +28,26 @@ const CARD_RE = /^\d{16}$/;
 const EXPIRY_RE = /^(0[1-9]|1[0-2])\/(\d{2})$/;
 const CVV_RE = /^\d{3}$/;
 
+// Keyboards using an input method (e.g. Chinese or Japanese in full-width mode)
+// type full-width characters such as "４２４２" or "１２／３０". Convert them to
+// normal ones ("4242", "12/30") so they count as digits everywhere.
+export function toHalfWidth(value) {
+  return value.normalize('NFKC');
+}
+
+// Checkout fields that hold numbers (they get full-width characters converted as you type).
+export const NUMERIC_FIELDS = ['postalCode', 'phone', 'cardNumber', 'expiry', 'cvv'];
+
+// Standard card length. The card number box accepts only this many digits.
+export const CARD_DIGITS = 16;
+
+// What the card number box shows while typing or pasting: digits only, at most
+// 16, in groups of four. "4242-4242 4242424299 x" -> "4242 4242 4242 4242"
+export function formatCardNumber(value) {
+  const digits = toHalfWidth(value).replace(/\D/g, '').slice(0, CARD_DIGITS);
+  return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+}
+
 // "4242 4242-4242 4242" -> "4242424242424242" (spaces and dashes are allowed)
 const digitsOnly = (v) => v.trim().replace(/[\s-]/g, '');
 
