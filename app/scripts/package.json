@@ -1,0 +1,13 @@
+{
+  "name": "bookstore-screenshots",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Captures the report screenshots of the Online Book Store with Puppeteer",
+  "type": "module",
+  "scripts": {
+    "screenshots": "node screenshots.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}

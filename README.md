@@ -43,3 +43,16 @@ postman collection run app/postman/OnlineBookStore.postman_collection.json
   without reseeding, unless the data was changed by hand (for example an order placed as Bob).
 - You can also import the file into the Postman app and use **Run collection**.
 - The Postman CLI does not start on macOS 12 (`dyld: Symbol not found: __libcpp_verbose_abort`); use Newman there.
+
+## Report screenshots
+
+`app/scripts/screenshots.js` captures the 20 screenshots used in the report into `report/images/`.
+
+```bash
+# backend (port 4000) and frontend (port 5173) must be running
+cd app/scripts && npm install && npm run screenshots
+```
+
+It reseeds the database before it starts (so the pictures always show the same data), drives the app in
+headless Chrome at 1280×800, and reseeds again at the end. Set `CHROME_PATH` if Chrome is installed somewhere
+else, or `APP_URL` if the frontend runs on another address.
